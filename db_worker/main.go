@@ -6,44 +6,43 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/go-redis/redis"
 	"strconv"
+	"fmt"
 	"os"
 )
 
 var db *sql.DB
 var dberr error
 var rdb *redis.Client
+var rdbPub *redis.Client
 
 func main() {
 	router := gin.New()
 
-	db, dberr = sql.Open("mysql", "root:password@/gofib")
+	cnxn := fmt.Sprintf("%s:%s@/%s", os.Getenv("MYSQL_HOST"), os.Getenv("MYSQL_PW"), os.Getenv("MYSQL_DB"))
+	db, dberr = sql.Open("mysql", cnxn)
 	defer db.Close()
 
-	setRedisClient()
+	rdb, rdbPub = setRedisClient(), setRedisClient()
+	subscribe()
 	router.Run(":3200")
 }
 
-func setRedisClient() {
+func setRedisClient() *redis.Client {
 	addr := os.Getenv("REDIS_HOST") + os.Getenv("REDIS_PORT")
-	rdb = redis.NewClient(&redis.Options{
+	client := redis.NewClient(&redis.Options{
 		Addr: addr,
 		Password: "",             
 	})
 
-	_, err := rdb.Ping().Result()
-	if err != nil {
-		panic(err)
-	}
-
-	subscribe()
+	_, err := client.Ping().Result()
+	handleErr(err)
+	return client
 }
 
 func subscribe() {
 	pubsub := rdb.Subscribe("memo-channel", "iter-channel")
 	_, err := pubsub.Receive()
-	if err != nil {
-		panic(err)
-	}
+	handleErr(err)
 
 	for msg := range pubsub.Channel() {
 		switch msg.Channel {
@@ -69,4 +68,16 @@ func insertFibValue(idx int) {
 	fib := memoFib(idx, map[int]int{ 0:0, 1:1 })
 	stmt, _ := db.Prepare("INSERT INTO sequences(idx, fib) VALUES (?, ?)")
 	stmt.Exec(idx, fib)
+	emitFib(fib)
+}
+
+func emitFib(fib int) {
+	err := rdbPub.Publish("emit-channel", fib).Err()
+	handleErr(err)
+}
+
+func handleErr(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
