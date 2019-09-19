@@ -9,7 +9,7 @@ func checkVal() gin.HandlerFunc {
 	return func (c *gin.Context) {
 		idx, err := strconv.Atoi(c.Param("num"))
 		if err != nil || idx < 0 {
-			c.JSON(400, gin.H{
+			c.AbortWithStatusJSON(400, gin.H{
 				"error": "Expected number greater or equal to 0",
 			})
 		}
