@@ -1,0 +1,42 @@
+version: '3'
+services:
+  redis:
+    image: 'redis:latest'
+  mysql:
+    image: 'mysql:latest'
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      - MYSQL_DATABASE=gofib
+      - MYSQL_USER=root
+      - MYSQL_ROOT_PASSWORD=password
+    restart: always
+    ports:
+      - '3300:3306'
+    expose: ["3306"]
+    volumes:
+      - ./db_worker/init:/docker-entrypoint-initdb.d/:ro
+  db_worker:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./db_worker
+    environment:
+      - MYSQL_DB=gofib
+      - MYSQL_PW=password
+      - MYSQL_USER=root
+      - MYSQL_HOST=mysql
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+      - mysql
+  api:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./server
+    ports:
+      - '80:3100'
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
