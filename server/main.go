@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
 	"strconv"
+	"fmt"
 	"os"
 )
 
@@ -33,7 +34,7 @@ func handleErr(err error) {
 }
 
 func setRedisClient() {
-	addr := os.Getenv("REDIS_HOST") + os.Getenv("REDIS_PORT")
+	addr := fmt.Sprintf("%s:%s", os.Getenv("REDIS_HOST"), os.Getenv("REDIS_PORT"))
 	rdb = redis.NewClient(&redis.Options{
 		Addr: addr,
 		Password: "",           

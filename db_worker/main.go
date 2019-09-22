@@ -18,7 +18,12 @@ var rdbPub *redis.Client
 func main() {
 	router := gin.New()
 
-	cnxn := fmt.Sprintf("%s:%s@/%s", os.Getenv("MYSQL_HOST"), os.Getenv("MYSQL_PW"), os.Getenv("MYSQL_DB"))
+	cnxn := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s",
+		os.Getenv("MYSQL_USER"),
+		os.Getenv("MYSQL_PW"),
+		os.Getenv("MYSQL_HOST"),
+		os.Getenv("MYSQL_DB"),
+	)
 	db, dberr = sql.Open("mysql", cnxn)
 	defer db.Close()
 
@@ -28,7 +33,7 @@ func main() {
 }
 
 func setRedisClient() *redis.Client {
-	addr := os.Getenv("REDIS_HOST") + os.Getenv("REDIS_PORT")
+	addr := fmt.Sprintf("%s:%s", os.Getenv("REDIS_HOST"), os.Getenv("REDIS_PORT"))
 	client := redis.NewClient(&redis.Options{
 		Addr: addr,
 		Password: "",             
