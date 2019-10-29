@@ -1,26 +1,24 @@
 import React, { Component } from 'react';
 import { Table, Button } from 'react-bootstrap';
+import { connect } from 'react-redux';
+import * as actions from '../actions';
 
 class TableValues extends Component {
-    constructor() {
-        super();
-        this.state = {
-            values: [
-                {index: 1, value: 1, execution:'1s'},
-                {index: 3, value: 3, execution:'1s'},
-                {index: 5, value: 5, execution:'2s'}]
-        };
+    componentWillMount() {
+        this.props.getFibValues();
     }
 
     renderTableValues() {
-        return this.state.values.map(fib =>
-            <tr key={fib.index}>
-                <td>{fib.index}</td>
-                <td>{fib.value}</td>
-                <td>{fib.execution}</td>
-                <td><Button variant="outline-danger">Delete</Button></td>
-            </tr>
-        )
+        if (this.props.values) {
+            return this.props.values.map(fib =>
+                <tr key={fib.idx}>
+                    <td>{fib.idx}</td>
+                    <td>{fib.fib}</td>
+                    <td></td>
+                    <td><Button variant="outline-danger">Delete</Button></td>
+                </tr>
+            )
+        }
     }
 
     render() {
@@ -42,4 +40,9 @@ class TableValues extends Component {
    }
 }
 
-export default TableValues;
+function mapStateToProps(state) {
+    const { error, values } = state.fib;
+    return { error, values };
+}
+
+export default connect(mapStateToProps, actions)(TableValues);

@@ -12,7 +12,7 @@ class HomePage extends Component {
                     <FormControl type="text" placeholder="fib(n)" className="mr-sm-2" />
                     <Button variant="outline-dark">Calculate</Button>
                 </Form>
-                <TableValues></TableValues>
+                <TableValues/>
                </div>
             </div>
        );
