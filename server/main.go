@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/gin-contrib/cors"
 	"github.com/go-redis/redis"
 	"strconv"
 	"fmt"
@@ -12,6 +13,7 @@ var rdb *redis.Client
 
 func main() {
 	router := gin.New()
+	router.Use(cors.Default())
 
 	setRedisClient()
 
@@ -19,9 +21,7 @@ func main() {
 	{
 		api.GET("/fib/:memo/:num", checkVal(), publishIndex)
 		api.GET("/all", getAllVals)
-		api.POST("/fib/:num", postFibVal)
-		api.DELETE("/fib/:num", deleteFibVal)
-		api.DELETE("/all", deleteAllVals)
+		api.DELETE("/:num", deleteFibVal)
 	}
 
 	router.Run(":3100")

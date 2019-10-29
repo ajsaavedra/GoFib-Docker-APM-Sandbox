@@ -16,7 +16,7 @@ var rdb *redis.Client
 var rdbPub *redis.Client
 
 func main() {
-	router := gin.New()
+	router := gin.Default()
 
 	cnxn := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s",
 		os.Getenv("MYSQL_USER"),
@@ -28,8 +28,10 @@ func main() {
 	defer db.Close()
 
 	rdb, rdbPub = setRedisClient(), setRedisClient()
-	subscribe()
+	router.GET("/all", getAllValues)
 	router.Run(":3200")
+
+	go subscribe()
 }
 
 func setRedisClient() *redis.Client {
@@ -67,6 +69,34 @@ func getFibValue(msg string) {
 	if err != nil {
 		insertFibValue(num)
 	}
+}
+
+func getAllValues(c *gin.Context) {
+	type Fib struct {
+		Idx int	 `json:"idx"`
+		Fib string `json:"fib"`
+	}
+
+	rows, err := db.Query("SELECT idx, fib FROM sequences")
+	defer rows.Close()
+	
+	if err != nil {
+		c.AbortWithStatus(500)
+	}
+
+	var values []Fib
+
+	for rows.Next() {
+		var idx int
+		var fib string
+		rows.Scan(&idx, &fib)
+
+		values = append(values, Fib{idx, fib})
+	}
+
+	c.JSON(200, gin.H{
+		"payload": values,
+	});
 }
 
 func insertFibValue(idx int) {
