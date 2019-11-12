@@ -16,3 +16,11 @@ table {
 h1 {
   font-family: 'Quicksand', sans-serif;
 }
+
+form {
+  justify-content: space-between;
+}
+
+.err {
+  color: red;
+}

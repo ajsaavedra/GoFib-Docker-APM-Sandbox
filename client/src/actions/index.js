@@ -18,7 +18,15 @@ export function getFibValues() {
 export function deleteFib(fib) {
     return function(dispatch) {
         axios.delete(`${ROOT_URL}/${fib}`)
-            .then(res => dispatch({ type: DELETE_FIB }))
+            .then(res => dispatch({ type: DELETE_FIB, payload: res.data }))
             .catch(() => dispatch({ type: ERROR, payload: 'Could not delete fib value' }));
+    }
+};
+
+export function putFibValue(value) {
+    return function (dispatch) {
+        axios.get(`${ROOT_URL}/fib/${value}`)
+            .then(() => console.log(`finished fetching {value}`))
+            .catch(() => dispatch({ type: ERROR }))
     }
 };
