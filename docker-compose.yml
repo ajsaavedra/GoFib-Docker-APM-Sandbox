@@ -48,3 +48,16 @@ services:
     volumes:
       - /app/node_modules
       - ./client:/app
+  datadog:
+    image: 'datadog/agent:latest'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    environment:
+      - DD_API_KEY=${DD_API_KEY}
+      - DD_APM_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_AC_EXCLUDE=name:datadog-agent
+    ports:
+      - '127.0.0.1:8126:8126/tcp'
