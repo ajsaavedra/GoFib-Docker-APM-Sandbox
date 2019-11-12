@@ -5,15 +5,21 @@ import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"strconv"
+	"fmt"
 )
 
 type Fib struct {
-	Idx int	   `json:"idx"`
-	Fib string `json:"fib"`
+	Idx int			`json:"idx"`
+	Fib string		`json:"fib"`
+	Elapsed string	`json:"elapsed"`
 }
 
 type Resp struct {
 	Body []Fib `json:"payload"`
+}
+
+type Status struct {
+	Body string `json:"payload"`
 }
 
 func checkVal() gin.HandlerFunc {
@@ -31,11 +37,7 @@ func checkVal() gin.HandlerFunc {
 func getAllVals(c *gin.Context) {
 	var resp Resp
 	res, err := http.Get("http://db_worker:3200/all")
-	if err != nil {
-		c.AbortWithStatusJSON(500, gin.H{
-			"error": "Could not query table",
-		})
-	}
+	abortDBCall(err, c)
 
 	defer res.Body.Close()
 	json.NewDecoder(res.Body).Decode(&resp)
@@ -43,14 +45,27 @@ func getAllVals(c *gin.Context) {
 	c.JSON(200, resp.Body);
 }
 
-func postFibVal(c *gin.Context) {
-
-}
-
 func deleteFibVal(c *gin.Context) {
+	client := &http.Client{}
+	url := fmt.Sprintf("http://db_worker:3200/%s", c.Param("num"))
+	var resp Status
+	req, err := http.NewRequest("DELETE", url, nil)
+	abortDBCall(err, c)
 
+	res, err := client.Do(req)
+
+	abortDBCall(err, c)
+
+	defer res.Body.Close()
+	json.NewDecoder(res.Body).Decode(&resp)
+
+	c.JSON(200, resp.Body);
 }
 
-func deleteAllVals(c *gin.Context) {
-
+func abortDBCall(err error, c *gin.Context) {
+	if err != nil {
+		c.AbortWithStatusJSON(500, gin.H{
+			"error": "Could not query DB",
+		})
+	}
 }

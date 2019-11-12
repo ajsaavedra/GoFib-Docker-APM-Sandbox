@@ -4,7 +4,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-contrib/cors"
 	"github.com/go-redis/redis"
-	"strconv"
 	"fmt"
 	"os"
 )
@@ -19,7 +18,7 @@ func main() {
 
 	api := router.Group("/api")
 	{
-		api.GET("/fib/:memo/:num", checkVal(), publishIndex)
+		api.GET("/fib/:num", checkVal(), publishIndex)
 		api.GET("/all", getAllVals)
 		api.DELETE("/:num", deleteFibVal)
 	}
@@ -45,14 +44,7 @@ func setRedisClient() {
 }
 
 func publishIndex(c *gin.Context) {
-	var channel string
-	isMemo, _ := strconv.ParseBool(c.Param("memo"))
-	if isMemo {
-		channel = "memo-channel"
-	} else {
-		channel = "iter-channel"
-	}
-
-	err := rdb.Publish(channel, c.Param("num")).Err()
+	err := rdb.Publish("memo-channel", c.Param("num")).Err()
 	handleErr(err)
+	c.JSON(200, "done")
 }
