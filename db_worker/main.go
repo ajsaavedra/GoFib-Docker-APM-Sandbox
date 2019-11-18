@@ -3,10 +3,14 @@ package main
 import (
 	"database/sql"
 	"github.com/gin-gonic/gin"
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
+	sqltrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/database/sql"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/ext"
+	log "github.com/sirupsen/logrus"
 	"github.com/go-redis/redis"
-	"encoding/json"
 	"strconv"
+	"context"
 	"time"
 	"fmt"
 	"os"
@@ -15,20 +19,32 @@ import (
 var db *sql.DB
 var dberr error
 var rdb *redis.Client
-var rdbPub *redis.Client
 
 func main() {
+	log.SetFormatter(&log.JSONFormatter{})
 	router := gin.Default()
+
+	debugMode, _ := strconv.ParseBool(os.Getenv("DEBUG_MODE"))
+
+	tracer.Start(
+		tracer.WithAgentAddr("datadog-agent:8126"),
+		tracer.WithServiceName("db-service"),
+		tracer.WithDebugMode(debugMode),
+	)
+	defer tracer.Stop()
+
+	sqltrace.Register("mysql", mysql.MySQLDriver{})
 	cnxn := fmt.Sprintf("%s:%s@tcp(mysql)/%s",
 		os.Getenv("MYSQL_USER"),
 		os.Getenv("MYSQL_PW"),
 		os.Getenv("MYSQL_DB"),
 	)
-	db, dberr = sql.Open("mysql", cnxn)
+	db, dberr = sqltrace.Open("mysql", cnxn)
 	defer db.Close()
 
-	rdb, rdbPub = setRedisClient(), setRedisClient()
+	rdb = setRedisClient()
 	go subscribe()
+
 	router.GET("/all", getAllValues)
 	router.DELETE("/:num", deleteFibValue)
 	router.Run(":3200")
@@ -56,28 +72,42 @@ func subscribe() {
 	}
 }
 
+func getSpanFromContext(resourceName string) (tracer.Span, context.Context) {
+	span, ctx := tracer.StartSpanFromContext(context.Background(), "fib-query",
+		tracer.SpanType(ext.SpanTypeSQL),
+		tracer.ServiceName("db-service"),
+		tracer.ResourceName(resourceName),
+	)
+
+	return span, ctx
+}
+
 func getFibValue(msg string) {
+	span, ctx := getSpanFromContext("getFibValue")
+
 	var idx int
 	var fib, elapsed string
 	num, _ := strconv.Atoi(msg)
 
-	err := db.QueryRow("SELECT * FROM sequences WHERE idx = ?", num).Scan(&idx, &fib, &elapsed)
+	err := db.QueryRowContext(ctx, "SELECT * FROM sequences WHERE idx = ?", num).Scan(&idx, &fib, &elapsed)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			insertFibValue(num)
+			insertFibValue(num, span, ctx)
 		}
 	}
 }
 
 func getAllValues(c *gin.Context) {
+	span, ctx := getSpanFromContext("getAllValues")
+
 	type Fib struct {
 		Idx int			`json:"idx"`
 		Fib string		`json:"fib"`
 		Elapsed string	`json:"elapsed"`
 	}
 
-	rows, err := db.Query("SELECT idx, fib, elapsed FROM sequences")
+	rows, err := db.QueryContext(ctx, "SELECT idx, fib, elapsed FROM sequences")
 	defer rows.Close()
 	
 	if err != nil {
@@ -94,38 +124,43 @@ func getAllValues(c *gin.Context) {
 		values = append(values, Fib{idx, fib, elapsed})
 	}
 
+	span.Finish(tracer.WithError(err))
+
 	c.JSON(200, gin.H{
 		"payload": values,
 	});
 }
 
-func insertFibValue(idx int) {
+func insertFibValue(idx int, span tracer.Span, ctx context.Context) {
 	start := time.Now()
-	fib := memoFib(idx, map[int]int{ 0:0, 1:1 })
+	fib := memoFib(idx, map[int]int{ 0:0, 1:1 }, span)
 	elapsed := time.Since(start).String()
-	stmt, _ := db.Prepare("INSERT INTO sequences(idx, fib, elapsed) VALUES (?, ?, ?)")
-	stmt.Exec(idx, fib, elapsed)
-	emitFib(idx, fib, elapsed)
+	stmt, err := db.PrepareContext(ctx, "INSERT INTO sequences(idx, fib, elapsed) VALUES (?, ?, ?)")
+	stmt.ExecContext(ctx, idx, fib, elapsed)
+	
+	traceID := span.Context().TraceID()
+    spanID := span.Context().SpanID()
+	log.WithFields(log.Fields{"index": idx, "value": fib, "dd.trace_id": traceID, "dd.span_id": spanID}).Info("Inserting calculated fib value")
+
+	span.Finish(tracer.WithError(err))
 }
 
 func deleteFibValue(c *gin.Context) {
-	stmt, _ := db.Prepare("DELETE FROM sequences WHERE idx = ?")
-	stmt.Exec(c.Param("num"))
-	c.JSON(200, gin.H{
-		"payload": c.Param("num"),
-	})
-}
+	span, ctx := getSpanFromContext("deleteFibValue")
+	idx := c.Param("num")
 
-func emitFib(idx int, fib int, elapsed string) {
-	type data struct {
-		Idx int
-		Fib int
-		Elapsed string
-	}
-	payload := &data{idx, fib, elapsed}
-	message, _ := json.Marshal(payload)
-	err := rdbPub.Publish("emit-channel", message).Err()
-	handleErr(err)
+	stmt, err := db.PrepareContext(ctx, "DELETE FROM sequences WHERE idx = ?")
+	stmt.ExecContext(ctx, idx)
+
+	c.JSON(200, gin.H{
+		"payload": idx,
+	})
+
+	traceID := span.Context().TraceID()
+    spanID := span.Context().SpanID()
+	log.WithFields(log.Fields{"index": idx, "dd.trace_id": traceID, "dd.span_id": spanID}).Info("Deleted fib value from DB")
+
+	span.Finish(tracer.WithError(err))
 }
 
 func handleErr(err error) {

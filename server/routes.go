@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"strconv"
 	"fmt"
 )
@@ -22,21 +23,25 @@ type Status struct {
 	Body string `json:"payload"`
 }
 
-func checkVal() gin.HandlerFunc {
-	return func (c *gin.Context) {
-		idx, err := strconv.Atoi(c.Param("num"))
-		if err != nil || idx < 0 {
-			c.AbortWithStatusJSON(400, gin.H{
-				"error": "Expected number greater or equal to 0",
-			})
-		}
-		c.Next()
+func checkVal(c *gin.Context) {
+	ctx := c.Request.Context()
+	span, _ := tracer.StartSpanFromContext(ctx, "checkVal")
+	idx, err := strconv.Atoi(c.Param("num"))
+	if err != nil || idx < 0 {
+		c.AbortWithStatusJSON(400, gin.H{
+			"error": "Expected number greater or equal to 0",
+		})
 	}
+	span.Finish()
+	c.Next()
 }
 
 func getAllVals(c *gin.Context) {
+	httpClient := &http.Client{}
+	httpReq, _ := http.NewRequest("GET", "http://db_worker:3200/all", nil)
+
 	var resp Resp
-	res, err := http.Get("http://db_worker:3200/all")
+	res, err := httpClient.Do(httpReq)
 	abortDBCall(err, c)
 
 	defer res.Body.Close()
