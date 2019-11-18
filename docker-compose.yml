@@ -2,6 +2,8 @@ version: '3'
 services:
   redis:
     image: 'redis:latest'
+    networks:
+      - default
   mysql:
     image: 'mysql:latest'
     command: --default-authentication-plugin=mysql_native_password
@@ -15,6 +17,8 @@ services:
     expose: ["3306"]
     volumes:
       - ./db_worker/init:/docker-entrypoint-initdb.d/:ro
+    networks:
+      - default
   db_worker:
     build:
       dockerfile: Dockerfile.dev
@@ -28,6 +32,8 @@ services:
     depends_on:
       - redis
       - mysql
+    networks:
+      - default
   api:
     build:
       dockerfile: Dockerfile.dev
@@ -39,6 +45,9 @@ services:
       - REDIS_PORT=6379
     depends_on:
       - redis
+      - datadog-agent
+    networks:
+      - default
   client:
     build:
       dockerfile: Dockerfile.dev
@@ -48,7 +57,9 @@ services:
     volumes:
       - /app/node_modules
       - ./client:/app
-  datadog:
+    networks:
+      - default
+  datadog-agent:
     image: 'datadog/agent:latest'
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -58,6 +69,13 @@ services:
       - DD_API_KEY=${DD_API_KEY}
       - DD_APM_ENABLED=true
       - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
       - DD_AC_EXCLUDE=name:datadog-agent
     ports:
       - '127.0.0.1:8126:8126/tcp'
+    networks:
+      - default
+networks:
+  default:
+    driver: bridge
