@@ -29,6 +29,7 @@ services:
       - MYSQL_USER=root
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - DEBUG_MODE=false
     depends_on:
       - redis
       - mysql
@@ -43,6 +44,7 @@ services:
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - DEBUG_MODE=false
     depends_on:
       - redis
       - datadog-agent
