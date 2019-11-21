@@ -31,7 +31,8 @@ func main() {
 
 	api := router.Group("/api")
 	{
-		api.GET("/fib/:num", checkVal, publishIndex)
+		api.POST("/fib", checkVal, publishIndex)
+		api.GET("/fib/:num", getVal)
 		api.GET("/all", getAllVals)
 		api.DELETE("/:num", deleteFibVal)
 	}
@@ -57,7 +58,8 @@ func setRedisClient() {
 }
 
 func publishIndex(c *gin.Context) {
-	err := rdb.Publish("memo-channel", c.Param("num")).Err()
+	index := c.MustGet("value").(int)
+	err := rdb.Publish("memo-channel", index).Err()
 	handleErr(err)
 	c.JSON(200, "done")
 }

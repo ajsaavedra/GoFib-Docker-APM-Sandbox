@@ -25,7 +25,7 @@ export function deleteFib(fib) {
 
 export function putFibValue(value) {
     return function (dispatch) {
-        axios.get(`${ROOT_URL}/fib/${value}`)
+        axios.post(`${ROOT_URL}/fib`, { value: parseInt(value) })
             .then(() => console.log(`finished fetching {value}`))
             .catch(() => dispatch({ type: ERROR }))
     }

@@ -9,6 +9,7 @@ import (
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/ext"
 	log "github.com/sirupsen/logrus"
 	"github.com/go-redis/redis"
+	"net/http"
 	"strconv"
 	"context"
 	"time"
@@ -19,6 +20,12 @@ import (
 var db *sql.DB
 var dberr error
 var rdb *redis.Client
+
+type Fib struct {
+	Idx int			`json:"idx"`
+	Fib string		`json:"fib"`
+	Elapsed string	`json:"elapsed"`
+}
 
 func main() {
 	log.SetFormatter(&log.JSONFormatter{})
@@ -46,6 +53,7 @@ func main() {
 	go subscribe()
 
 	router.GET("/all", getAllValues)
+	router.GET("/fib/:num", getValue)
 	router.DELETE("/:num", deleteFibValue)
 	router.Run(":3200")
 }
@@ -68,7 +76,7 @@ func subscribe() {
 	handleErr(err)
 
 	for msg := range pubsub.Channel() {
-		go getFibValue(msg.Payload)
+		go insertFibValue(msg.Payload)
 	}
 }
 
@@ -82,7 +90,7 @@ func getSpanFromContext(resourceName string) (tracer.Span, context.Context) {
 	return span, ctx
 }
 
-func getFibValue(msg string) {
+func getFibValue(msg string) (int, string, string) {
 	span, ctx := getSpanFromContext("getFibValue")
 
 	var idx int
@@ -93,20 +101,30 @@ func getFibValue(msg string) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			insertFibValue(num, span, ctx)
+			traceID := span.Context().TraceID()
+			spanID := span.Context().SpanID()
+			log.WithFields(log.Fields{"index": idx, "dd.trace_id": traceID, "dd.span_id": spanID}).Info("Value not found in DB")
 		}
 	}
+
+	span.Finish(tracer.WithError(err))
+	return idx, fib, elapsed
+}
+
+func getValue(c *gin.Context) {
+	span, _ := getSpanFromContext("getValue")
+	idx, fib, elapsed := getFibValue(c.Param("num"))
+	if elapsed == "" {
+		c.Writer.WriteHeader(http.StatusNotFound)
+	} else {	
+		value := Fib{idx, fib, elapsed}
+		c.JSON(200, value)
+	}
+	span.Finish()
 }
 
 func getAllValues(c *gin.Context) {
 	span, ctx := getSpanFromContext("getAllValues")
-
-	type Fib struct {
-		Idx int			`json:"idx"`
-		Fib string		`json:"fib"`
-		Elapsed string	`json:"elapsed"`
-	}
-
 	rows, err := db.QueryContext(ctx, "SELECT idx, fib, elapsed FROM sequences")
 	defer rows.Close()
 	
@@ -131,13 +149,22 @@ func getAllValues(c *gin.Context) {
 	});
 }
 
-func insertFibValue(idx int, span tracer.Span, ctx context.Context) {
+func insertFibValue(msg string) {
+	span, ctx := getSpanFromContext("insertFibValue")
+
+	_, _, elapsedFound := getFibValue(msg)
+
+	if elapsedFound != "" {
+		return
+	}
+
+	idx, _ := strconv.Atoi(msg)
 	start := time.Now()
 	fib := memoFib(idx, map[int]int{ 0:0, 1:1 }, span)
 	elapsed := time.Since(start).String()
 	stmt, err := db.PrepareContext(ctx, "INSERT INTO sequences(idx, fib, elapsed) VALUES (?, ?, ?)")
 	stmt.ExecContext(ctx, idx, fib, elapsed)
-	
+
 	traceID := span.Context().TraceID()
     spanID := span.Context().SpanID()
 	log.WithFields(log.Fields{"index": idx, "value": fib, "dd.trace_id": traceID, "dd.span_id": spanID}).Info("Inserting calculated fib value")
