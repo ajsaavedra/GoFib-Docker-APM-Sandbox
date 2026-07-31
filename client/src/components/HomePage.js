@@ -15,13 +15,7 @@ class HomePage extends Component {
     }
 
     handleChange(event) {
-        var fib;
-        if (event.target.value == '') {
-            fib = null;
-        } else {
-            fib = event.target.value;
-        }
-        this.setState({ fib });
+        this.setState({ fib: event.target.value });
     }
 
     onSubmit(event) {
@@ -33,9 +27,8 @@ class HomePage extends Component {
                 alert: 'Please enter a valid number >= 0'
             });
         }
-        this.setState({ alert: null, fib: null });
+        this.setState({ alert: null, fib: '' });
         this.props.putFibValue(fib);
-        window.location.reload(false);
     }
 
     renderAlert() {

@@ -12,6 +12,7 @@ export default function(state = {}, action) {
             return { ...state, deleted: true, value: action.payload };
         case ERROR:
             return { ...state, error: true };
+        default:
+            return state;
     }
-    return state;
 };

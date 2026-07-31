@@ -1,15 +1,14 @@
-version: '3'
 services:
   redis:
-    image: 'redis:latest'
+    image: 'redis:7'
     networks:
       - default
   mysql:
-    image: 'mysql:latest'
-    command: --default-authentication-plugin=mysql_native_password
+    image: 'mysql:8.4'
     environment:
       - MYSQL_DATABASE=gofib
-      - MYSQL_USER=root
+      - MYSQL_USER=gofib
+      - MYSQL_PASSWORD=password
       - MYSQL_ROOT_PASSWORD=password
     restart: always
     ports:
@@ -26,7 +25,7 @@ services:
     environment:
       - MYSQL_DB=gofib
       - MYSQL_PW=password
-      - MYSQL_USER=root
+      - MYSQL_USER=gofib
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - DEBUG_MODE=false
@@ -62,19 +61,26 @@ services:
     networks:
       - default
   datadog-agent:
-    image: 'datadog/agent:latest'
+    image: 'datadog/agent:7'
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/datadog:/var/run/datadog
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
     env_file:
       - ~/sandbox.docker.env
     environment:
+      - DD_SITE=us3.datadoghq.com
+      - DD_ENV=dev
       - DD_APM_ENABLED=true
       - DD_APM_NON_LOCAL_TRAFFIC=true
       - DD_LOGS_ENABLED=true
       - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
       - DD_AC_EXCLUDE=name:datadog-agent
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      - DD_APM_RECEIVER_SOCKET=/var/run/datadog/apm.socket
+      - DD_DOGSTATSD_SOCKET=/var/run/datadog/dsd.socket
     ports:
       - '127.0.0.1:8126:8126/tcp'
     networks:

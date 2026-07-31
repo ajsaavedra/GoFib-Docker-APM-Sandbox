@@ -4,29 +4,8 @@ import { connect } from 'react-redux';
 import * as actions from '../actions';
 
 class TableValues extends Component {
-    constructor() {
-      super();
-      this.state = {
-        values: null
-      }
-      this.renderTableValues = this.renderTableValues.bind(this);
-    }
-
-    componentWillMount() {
+    componentDidMount() {
         this.props.getFibValues();
-    }
-
-    componentWillReceiveProps(nextProps) {
-        if (nextProps.values) {
-          this.setState({
-            values: nextProps.values
-          });
-        }
-        if (nextProps.deleted) {
-          let update = [...this.state.values];
-          update = update.filter(values => values.idx != nextProps.value);
-          this.setState({ values: update });
-        }
     }
 
     handleDelete(index) {
@@ -34,8 +13,8 @@ class TableValues extends Component {
     }
 
     renderTableValues() {
-        if (this.state.values) {
-            return this.state.values.map(fib =>
+        if (this.props.values) {
+            return this.props.values.map(fib =>
                 <tr key={fib.idx}>
                     <td>{fib.idx}</td>
                     <td>{fib.fib}</td>

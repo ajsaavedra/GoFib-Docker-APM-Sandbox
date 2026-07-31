@@ -5,7 +5,7 @@ import {
     ERROR
 } from './types';
 
-const ROOT_URL = 'http://localhost:80/api';
+const ROOT_URL = 'http://localhost/api';
 
 export function getFibValues() {
     return function(dispatch) {
@@ -26,7 +26,11 @@ export function deleteFib(fib) {
 export function putFibValue(value) {
     return function (dispatch) {
         axios.post(`${ROOT_URL}/fib`, { value: parseInt(value) })
-            .then(() => console.log(`finished fetching {value}`))
-            .catch(() => dispatch({ type: ERROR }))
+            .then(() => {
+                setTimeout(() => {
+                    dispatch(getFibValues());
+                }, 2000);
+            })
+            .catch(() => dispatch({ type: ERROR }));
     }
 };
