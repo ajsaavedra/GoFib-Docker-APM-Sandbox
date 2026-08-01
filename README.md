@@ -53,7 +53,12 @@ docker-compose up
 
 ### Step 4: Curling endpoints
 
-You can use the browser to access these endpoints. Here are the endpoints you can use if you want to use the terminal:
+You can use the browser to access these endpoints. 
+
+<img width="735" height="254" alt="Screenshot 2026-07-31 at 4 50 48 PM" src="https://github.com/user-attachments/assets/95705a5d-4c8d-49a9-b400-b88b535c48ff" />
+
+
+Here are the endpoints you can use if you want to use the terminal:
 
 1. GET a list of all values
 
@@ -80,6 +85,9 @@ curl localhost:80/api/fib/<fib-value>
 ```
 
 At this point, you should have traces in the Datadog UI outlining how some recursive functions can have overlapping subproblems and how to optimize them.
+
+<img width="655" height="394" alt="Screenshot 2026-07-31 at 4 50 19 PM" src="https://github.com/user-attachments/assets/589cf2f6-eabb-42e8-af0f-1d8c2ff7b3c9" />
+
 
 ### Step 5: Spin down containers
 
