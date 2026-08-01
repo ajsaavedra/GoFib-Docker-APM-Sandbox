@@ -7,7 +7,7 @@ import { putFibValue } from '../actions';
 class HomePage extends Component {
     constructor(props) {
         super(props);
-        this.state = { fib: null, alert: null };
+        this.state = { fib: '', alert: null };
 
         this.handleChange = this.handleChange.bind(this);
         this.onSubmit = this.onSubmit.bind(this);
@@ -21,9 +21,9 @@ class HomePage extends Component {
     onSubmit(event) {
         event.preventDefault();
         const fib = this.state.fib;
-        if (fib === null || isNaN(fib) || fib < 0) {
+        if (fib === '' || isNaN(fib) || fib < 0) {
             return this.setState({
-                fib: null,
+                fib: '',
                 alert: 'Please enter a valid number >= 0'
             });
         }
@@ -59,8 +59,4 @@ class HomePage extends Component {
     }
 }
 
-function mapStateToProps(state) {
-    return state;
-}
-
-export default connect(mapStateToProps, { putFibValue })(HomePage);
+export default connect(null, { putFibValue })(HomePage);

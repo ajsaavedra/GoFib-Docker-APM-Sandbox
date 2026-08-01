@@ -45,8 +45,8 @@ class TableValues extends Component {
 }
 
 function mapStateToProps(state) {
-    const { error, values, deleted, value } = state.fib;
-    return { error, values, deleted, value };
+    const { error, values } = state.fib;
+    return { error, values };
 }
 
 export default connect(mapStateToProps, actions)(TableValues);

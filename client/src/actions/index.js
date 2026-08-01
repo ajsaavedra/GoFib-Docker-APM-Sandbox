@@ -1,7 +1,6 @@
 import axios from 'axios';
 import {
     GET_FIB_VALUES,
-    DELETE_FIB,
     ERROR
 } from './types';
 
@@ -18,8 +17,13 @@ export function getFibValues() {
 export function deleteFib(fib) {
     return function(dispatch) {
         axios.delete(`${ROOT_URL}/${fib}`)
-            .then(res => dispatch({ type: DELETE_FIB, payload: res.data }))
-            .catch(() => dispatch({ type: ERROR, payload: 'Could not delete fib value' }));
+            .then(() => {
+                dispatch(getFibValues());
+            })
+            .catch(() => dispatch({
+                type: ERROR,
+                payload: 'Could not delete fib value'
+            }));
     }
 };
 
